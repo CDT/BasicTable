@@ -1,40 +1,45 @@
 <template>
-  <div class="ui container">
-
+  <div class="container">
     <filter-bar></filter-bar>
     <vuetable ref="vuetable"
       api-url="https://vuetable.ratiw.net/api/users"
       :fields="fields"
+      :css="css"
       pagination-path=""
-      :per-page="20"
+      :per-page="10"
       :multi-sort="true"
+      multi-sort-key="ctrl"
       :sort-order="sortOrder"
-      :append-params="moreParams"
       detail-row-component="my-detail-row"
+      :append-params="moreParams"
+      :render-icon="renderIcon"
       @vuetable:cell-clicked="onCellClicked"
       @vuetable:pagination-data="onPaginationData"
     >
       <template slot="actions" scope="props">
         <div class="custom-actions">
-          <button class="ui basic button"
+          <button class="btn btn-default btn-sm"
             @click="onAction('view-item', props.rowData, props.rowIndex)">
-            <i class="zoom icon"></i>
+            <span class="glyphicon glyphicon-zoom-in"></span>
           </button>
-          <button class="ui basic button"
+          <button class="btn btn-default btn-sm"
             @click="onAction('edit-item', props.rowData, props.rowIndex)">
-            <i class="edit icon"></i>
+            <span class="glyphicon glyphicon-pencil"></span>
           </button>
-          <button class="ui basic button"
+          <button class="btn btn-default btn-sm"
             @click="onAction('delete-item', props.rowData, props.rowIndex)">
-            <i class="delete icon"></i>
+            <span class="glyphicon glyphicon-remove"></span>
           </button>
         </div>
       </template>
     </vuetable>
-    <div class="vuetable-pagination ui basic segment grid">
+    <div>
       <vuetable-pagination-info ref="paginationInfo"
+        :css="css.pagination"
+        info-class="pull-left"
       ></vuetable-pagination-info>
       <vuetable-pagination ref="pagination"
+        :css="css.pagination"
         @vuetable-pagination:change-page="onChangePage"
       ></vuetable-pagination>
     </div>
@@ -42,94 +47,34 @@
 </template>
 
 <script>
-import accounting from 'accounting'
-import moment from 'moment'
-import Vue from 'vue'
-import VueEvents from 'vue-events'
 import Vuetable from 'vuetable-2/src/components/Vuetable'
 import VuetablePagination from 'vuetable-2/src/components/VuetablePagination'
 import VuetablePaginationInfo from 'vuetable-2/src/components/VuetablePaginationInfo'
+import accounting from 'accounting'
+import moment from 'moment'
+import Vue from 'vue'
+import FieldDef from './field-def.js'
+import BootstrapStyle from './bootstrap-css.js'
 import CustomActions from './CustomActions'
 import DetailRow from './DetailRow'
 import FilterBar from './FilterBar'
-
+import VueEvents from 'vue-events'
 Vue.use(VueEvents)
+
 Vue.component('custom-actions', CustomActions)
 Vue.component('my-detail-row', DetailRow)
-Vue.component('filter-bar', FilterBar)
 
 export default {
   components: {
     Vuetable,
     VuetablePagination,
-    VuetablePaginationInfo
+    VuetablePaginationInfo,
+    FilterBar
   },
   data () {
-    return {
-      fields: [
-        {
-          name: '__handle',
-          titleClass: 'center aligned',
-          dataClass: 'center aligned'
-        },
-        {
-          name: '__sequence',
-          title: '#',
-          titleClass: 'center aligned',
-          dataClass: 'right aligned'
-        },
-        {
-          name: '__checkbox',
-          titleClass: 'center aligned',
-          dataClass: 'center aligned'
-        },
-        {
-          name: 'name',
-          sortField: 'name',
-        }, 
-        {
-          name: 'email',
-          sortField: 'email'
-        },
-        {
-          name: 'birthdate',
-          sortField: 'birthdate',
-          titleClass: 'center aligned',
-          dataClass: 'center aligned',
-          callback: 'formatDate|DD-MM-YYYY'
-        },
-        {
-          name: 'nickname',
-          sortField: 'nickname',
-          callback: 'allcap'
-        },
-        {
-          name: 'gender',
-          sortField: 'gender',
-          titleClass: 'center aligned',
-          dataClass: 'center aligned',
-          callback: 'genderLabel'
-        },
-        {
-          name: 'salary',
-          sortField: 'salary',
-          titleClass: 'center aligned',
-          dataClass: 'right aligned',
-          callback: 'formatNumber'
-        },
-        // {
-        //   name: '__component:custom-actions',
-        //   title: 'Actions',
-        //   titleClass: 'center aligned',
-        //   dataClass: 'center aligned',
-        // },
-        {
-          name: '__slot:actions',
-          title: 'Slot Actions',
-          titleClass: 'center aligned',
-          dataClass: 'center aligned',
-        }
-      ],
+  	return {
+      css: BootstrapStyle,
+      fields: FieldDef,
       sortOrder: [
         {
           field: 'email',
@@ -138,20 +83,23 @@ export default {
         }
       ],
       moreParams: {}
-    }
+  	}
   },
   mounted () {
-    this.$events.$on('filter-set', eventData => this.onFilterSet(eventData))
-    this.$events.$on('filter-reset', e => this.onFilterReset())
+    this.$events.listen('filter-set', filterText => this.onFilterSet(filterText))
+    this.$events.listen('filter-reset', () => this.onFilterReset())
   },
   methods: {
+    renderIcon (classes, options) {
+      return `<span class="${classes.join(' ')}"></span>`
+    },
     allcap (value) {
       return value.toUpperCase()
     },
     genderLabel (value) {
       return value === 'M'
-        ? '<span class="ui teal label"><i class="large man icon"></i>Male</span>'
-        : '<span class="ui pink label"><i class="large woman icon"></i>Female</span>'
+        ? '<span class="label label-warning"><span class="glyphicon glyphicon-star"></span> Male</span>'
+        : '<span class="label label-info"><span class="glyphicon glyphicon-heart"></span> Female</span>'
     },
     formatNumber (value) {
       return accounting.formatNumber(value, 2)
@@ -168,21 +116,40 @@ export default {
     onChangePage (page) {
       this.$refs.vuetable.changePage(page)
     },
-    onAction (action, data, index) {
-      console.log('slot action: ' + action, data.name, index)
-    },
     onCellClicked (data, field, event) {
       console.log('cellClicked: ', field.name)
       this.$refs.vuetable.toggleDetailRow(data.id)
     },
+    onAction (action, data, index) {
+        console.log('custom-actions: ' + action, data.name, index)
+    },
     onFilterSet (filterText) {
-      this.moreParams.filter = filterText
-      Vue.nextTick( () => this.$refs.vuetable.refresh() )
+      this.moreParams = {
+        'filter': filterText
+      }
+      Vue.nextTick( () => this.$refs.vuetable.refresh())
     },
     onFilterReset () {
-      delete this.moreParams.filter
-      Vue.nextTick( () => this.$refs.vuetable.refresh() )
+      this.moreParams = {}
+      this.$refs.vuetable.refresh()
+      Vue.nextTick( () => this.$refs.vuetable.refresh())
     }
-  }
+  },
 }
 </script>
+<style>
+.pagination {
+  margin-top: 0;
+}
+.btn.btn-border {
+  border: 1px solid;
+  margin-right: 2px;
+}
+.vuetable-pagination-info {
+  margin-top: 8px !important;
+}
+span.sort-icon {
+  float: right;
+  color: #ff9100;
+}
+</style>
